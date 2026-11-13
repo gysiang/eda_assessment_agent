@@ -1,34 +1,54 @@
-name: Automated AI Repo Review
+name: Dynamic AI Repo Review
 
 on:
-  workflow_dispatch: # This makes it strictly manual
+  workflow_dispatch:
+    inputs:
+      target_repo_name:
+        description: 'Repository name to evaluate (e.g. activity-lvl)'
+        required: true
+        default: 'activity-lvl'
+        type: string
 
 jobs:
-  review-code:
+  run-review-agent:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout Repository
+      # 1. Dynamically checkout the repo using the input variable
+      - name: Checkout Target Repo
         uses: actions/checkout@v4
+        with:
+          repository: gysiang/${{ github.event.inputs.target_repo_name }}
+          token: ${{ secrets.GH_PAT_TOKEN }}     # Required if private
+          path: target_repo
+
+      # 2. Checkout your AI Review Agent repo
+      - name: Checkout Review Agent Repo
+        uses: actions/checkout@v4
+        with:
+          repository: gysiang/eda_assessment_agent
+          path: review_agent
 
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.10'
+          python-version: '3.11'
           cache: 'pip'
 
       - name: Install Dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install openai pydantic
+          pip install -r review_agent/requirements.txt
 
-      - name: Run AI Review Agent
+      # 3. Run the evaluation script
+      - name: Execute AI Review
         env:
-          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
         run: |
-          python main.py --repo-path "." --output "evaluation_report.md"
+          python review_agent/main.py --repo-path "target_repo" --output "target_repo/evaluation_reports/evaluation_report.md"
 
+      # 4. Upload the report
       - name: Upload Report Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: project-feedback-report
-          path: evaluation_report.md
+          name: evaluation-report-${{ github.event.inputs.target_repo_name }}
+          path: target_repo/evaluation_reports/evaluation_report.md
