@@ -21,7 +21,9 @@ def main():
     print(f"Scanning repository at: {args.repo_path}")
     codebase = parse_repository(args.repo_path)
 
-    prompt_path = Path("prompts/evaluation_system_prompt.md")
+    prompt_path = (
+        Path(__file__).resolve().parent / "prompts/evaluation_system_prompt.md"
+    )
     system_prompt = prompt_path.read_text(encoding="utf-8")
 
     print(f"Sending {len(codebase)} files to {args.model} for evaluation...")
